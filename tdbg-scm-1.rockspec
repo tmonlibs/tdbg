@@ -23,6 +23,12 @@ dependencies = {
 build = {
     type = 'builtin';
     modules = {
-        ['tdbg'] = 'tdbg/init.lua';
+        luadebug = 'luadebug.lua';
+    },
+    install = {
+        bin = {
+            "tdbg"
+        }
     }
+
 }
