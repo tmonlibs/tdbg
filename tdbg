@@ -1,12 +1,22 @@
 #!/usr/bin/env tarantool
 
-local debugger = require 'luadebug'
+local debugger = require 'tdebug'
 local fio = require 'fio'
 
 local RED = string.char(27) .. "[91m"
 local RESET = string.char(27) .. "[0m"
 
 debugger.writeln("Tarantool Debugger wrapper:")
+local yaml = require('yaml').new()
+yaml.cfg{
+    encode_invalid_numbers = true;
+    encode_load_metatables = true;
+    encode_use_tostring    = true;
+    encode_invalid_as_nil  = true;
+}
+
+print(yaml.encode(debugger))
+print(yaml.encode(debugger.dofile))
 
 if #arg > 0 and fio.stat(arg[1]) ~= nil then
     debugger.dofile('tdbg', unpack(arg))
