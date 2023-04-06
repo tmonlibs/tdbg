@@ -28,16 +28,14 @@ local function motto()
 end
 
 local handle = function(arguments)
-    -- If breakpoint defined, enter debugger mode
-    local breakpointsStr = arguments["debugger"]
-    local breakpoints = {}
-
-    if breakpointsStr and arguments.input then
+    -- If  defined, enter debugger mode
+    local debuggerOpts = arguments["debugger"]
+    if debuggerOpts and arguments.input then
         debugger.dofile('tdbg', arguments.input, unpack(arguments.arguments))
-    elseif breakpointsStr and not arguments.input then
+    elseif debuggerOpts and not arguments.input then
         print(colors.red("Illegal use of --debugger: missing input file"))
         return
-    elseif not breakpointsStr and arguments.input then
+    elseif not debuggerOpts and arguments.input then
         -- cdo.runFile(arguments.input, arguments.arguments)
     else
         -- Regular REPL
