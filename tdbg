@@ -1,6 +1,6 @@
 #!/usr/bin/env tarantool
 
-local debugger = require 'tdebug'
+local debugger = require 'tdebug.debugger'
 local fio = require 'fio'
 
 local RED = string.char(27) .. "[91m"
