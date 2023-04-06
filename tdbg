@@ -1,33 +1,52 @@
 #!/usr/bin/env tarantool
 
+local colors   = require "term.colors"
 local debugger = require 'tdebug.debugger'
-local fio = require 'fio'
+local argparse = require "argparse"
 
-local RED = string.char(27) .. "[91m"
-local RESET = string.char(27) .. "[0m"
+local parseArgument = function()
+    local parser = argparse()
+        :name "tdebug"
+        :description "Better Tarantool shell"
 
-debugger.writeln("Tarantool Debugger wrapper:")
-local yaml = require('yaml').new()
-yaml.cfg{
-    encode_invalid_numbers = true;
-    encode_load_metatables = true;
-    encode_use_tostring    = true;
-    encode_invalid_as_nil  = true;
-}
+    parser:argument "input"
+        :description "A lua or sql file to run or debug"
+        :args "?"
 
-print(yaml.encode(debugger))
-print(yaml.encode(debugger.dofile))
+    parser:argument "arguments"
+        :description "Arguments to pass to <input>"
+        :args "*"
 
-if #arg > 0 and fio.stat(arg[1]) ~= nil then
-    debugger.dofile('tdbg', unpack(arg))
-else
-    debugger.writeln(
-[[
+    parser:flag "-d --debugger"
+        :description "Run tdebug in debugger mode"
 
-%sError! No accessible script provided.%s
-
-Usage: tdb scriptpath.lua args ...
-
-]], RED, RESET)
+    return parser:parse()
 end
+
+local function motto()
+    debugger.writeln("Tarantool Debugger wrapper:")
+end
+
+local handle = function(arguments)
+    -- If breakpoint defined, enter debugger mode
+    local breakpointsStr = arguments["debugger"]
+    local breakpoints = {}
+
+    if breakpointsStr and arguments.input then
+        debugger.dofile('tdbg', arguments.input, unpack(arguments.arguments))
+    elseif breakpointsStr and not arguments.input then
+        print(colors.red("Illegal use of --debugger: missing input file"))
+        return
+    elseif not breakpointsStr and arguments.input then
+        -- cdo.runFile(arguments.input, arguments.arguments)
+    else
+        -- Regular REPL
+        -- require "croissant.repl"()
+    end
+end
+
+motto()
+
+handle(parseArgument())
+
 os.exit(0)
