@@ -6,8 +6,8 @@ TODO
 1. Debugger mode
    [x] Integrate debugger support commands 'break', 'cont', 'watch', etc. (Borrow from Tarantool `luadebug.lua`)
    [x] Activate debugger mode via `-d`;
-   [ ] Switch to `term.colors` for colored output;
-   [ ] Extract to file command parsing code;
+   [x] Switch to `term.colors` for colored output;
+   [x] Extract to file command parsing code;
    [ ] Introduce to config extensibility mechanism;
    [ ] Integrated documentation for Tarantool modules and functions. Extensibility mechanism here;
 
@@ -24,5 +24,5 @@ TODO
    [ ] Tabulated output for executed queries;
    [ ] Paging support;
    [ ] Execution plans;
-   [ ]  Counters;
+   [ ] Counters;
 4. Profiler(s) [from `luacov` to `sysprof`];
