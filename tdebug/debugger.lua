@@ -911,76 +911,9 @@ local commands_help = {
     {'w.here $linecount', 'print source code around the current line', cmd_where},
 }
 
-local function build_commands_map(commands)
-    local gen_commands = {}
-
-    for _, cmds in ipairs(commands) do
-        local c, h, f = unpack(cmds)
-        local first = true
-        local main_cmd
-        local pattern = '^[^%s]+%s+([^%s]+)'
-        --[[
-            "expected argument" is treated as a global attribute,
-            active for all command's aliases.
-        ]]
-        local arg_exp = false
-
-        for subcmds in c:gmatch('[^|]+') do
-            local arg = subcmds:match(pattern)
-            subcmds = subcmds:match('^([^%s]+)')
-            local cmd = ''
-            local gen = subcmds:gmatch('[^.]+')
-            local prefix = gen()
-            local suffix = ''
-            local segment = prefix
-
-            -- remember the first segment (main shortcut for command)
-            if first then
-                main_cmd = prefix
-                arg_exp = arg
-            end
-
-            repeat
-                cmd = cmd .. segment
-                gen_commands[cmd] = {
-                    help = h,
-                    handler = f,
-                    first = first,
-                    suffix = suffix,
-                    aliases = {},
-                    arg = arg_exp
-                }
-                if first then
-                    table.insert(gen_commands, main_cmd)
-                else
-                    assert(#main_cmd > 0)
-                    table.insert(gen_commands[main_cmd].aliases, cmd)
-                end
-                first = false
-                segment = gen()
-                suffix = suffix .. (segment or '')
-            until not segment
-        end
-    end
-    return gen_commands
-end
-
-gen_commands = build_commands_map(commands_help)
+gen_commands = require ('tdebug.commands_map').build(commands_help)
 
 local last_cmd = false
-
--- Recognize a command, then return command handler,
--- 1st argument passed, and flag what argument is expected.
-local function match_command(line)
-    local gen = line:gmatch('[^%s]+')
-    local cmd = gen()
-    local arg1st = gen()
-    if not gen_commands[cmd] then
-        return nil
-    else
-        return gen_commands[cmd].handler, arg1st, gen_commands[cmd].arg
-    end
-end
 
 -- Run a command line
 -- Returns true if the REPL should exit and the hook function factory
@@ -991,7 +924,7 @@ local function run_command(line)
     -- Re-execute the last command if you press return.
     if line == "" then line = last_cmd or "h" end
 
-    local handler, command_arg, arg_expected = match_command(line)
+    local handler, command_arg, arg_expected = gen_commands:match(line)
     if handler then
         if arg_expected and command_arg == nil then
             dbg_write_error("command '%s' expects argument, but none received.\n" ..
