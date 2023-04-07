@@ -27,16 +27,12 @@
 local dbg
 
 local DEBUGGER = 'luadebug'
+
+local colors = require 'term.colors'
 -- Use ANSI color codes in the prompt by default.
-local COLOR_GRAY = ""
-local COLOR_RED = ""
-local COLOR_GREEN
-local COLOR_BLUE = ""
-local COLOR_YELLOW = ""
-local COLOR_RESET = ""
-local CARET_SYM = "=>"
+local CARET_SYM = colors.green("=>")
 local CARET = " " .. CARET_SYM .. " "
-local BREAK_SYM = "●"
+local BREAK_SYM = colors.red("●")
 
 local LJ_MAX_LINE = 0x7fffff00 -- Max. source code line number.
 
@@ -118,20 +114,11 @@ local function dbg_writeln(str, ...)
 end
 
 -- colored text output wrappers
-local function color_blue(text)
-    return COLOR_BLUE .. text .. COLOR_RESET
-end
-
-local function color_yellow(text)
-    return COLOR_YELLOW .. text .. COLOR_RESET
-end
-
-local function color_red(text)
-    return COLOR_RED .. text .. COLOR_RESET
-end
-
+local color_blue = colors.blue
+local color_yellow = colors.yellow
+local color_red = colors.red
 local function color_grey(text)
-    return COLOR_GRAY .. text .. COLOR_RESET
+    return colors.bright(colors.black(text))
 end
 
 -- report error highlighted in color
@@ -1182,26 +1169,6 @@ function dbg.msgh(...)
     end
 
     return ...
-end
-
-local ffi = require("ffi")
-ffi.cdef [[ int isatty(int); ]]
-
-local stdout_isatty = ffi.C.isatty(1)
-
--- Conditionally enable color support.
-local color_maybe_supported = (stdout_isatty and os.getenv("TERM") and os.getenv("TERM") ~= "dumb")
-if color_maybe_supported and not os.getenv("NO_COLOR") then
-    COLOR_GRAY = string.char(27) .. "[90m"
-    COLOR_RED = string.char(27) .. "[91m"
-    COLOR_GREEN = string.char(27) .. "[92m"
-    COLOR_BLUE = string.char(27) .. "[94m"
-    COLOR_YELLOW = string.char(27) .. "[33m"
-    COLOR_RESET = string.char(27) .. "[0m"
-
-    CARET_SYM = COLOR_GREEN .. "=>" .. COLOR_RESET
-    CARET = " " .. CARET_SYM .. " "
-    BREAK_SYM = COLOR_RED .. "●" .. COLOR_RESET
 end
 
 return dbg

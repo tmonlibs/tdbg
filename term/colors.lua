@@ -43,6 +43,10 @@ local function makecolor(value)
     return setmetatable({ value = schar(27) .. '[' .. tostring(value) .. 'm' }, colormt)
 end
 
+local function nocolor(value)
+    return value
+end
+
 local colorvalues = {
     -- attributes
     reset      = 0,
@@ -76,8 +80,18 @@ local colorvalues = {
     onwhite   = 47,
 }
 
+local ffi = require("ffi")
+ffi.cdef [[ int isatty(int); ]]
+
+local stdout_isatty = ffi.C.isatty(1)
+
+-- Check whether we need color support in terminal
+local color_supported = (stdout_isatty and
+                         os.getenv("TERM") and os.getenv("TERM") ~= "dumb"
+                         and not os.getenv("NO_COLOR"))
+
 for c, v in pairs(colorvalues) do
-    colors[c] = makecolor(v)
+    colors[c] = color_supported and makecolor(v) or nocolor
 end
 
 return colors
