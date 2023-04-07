@@ -157,7 +157,6 @@ end
 local fio = require 'fio'
 local cwd = fio.cwd()
 
-local suffix_arrays = {} -- memoize file x tree resuls
 local normalized_files = {} -- memoize normalization results
 
 --[[
@@ -183,143 +182,7 @@ local function normalize_file(file, resolve_dots)
     return file
 end
 
--- This function is on a hot path of a debugger hook.
--- Try very hard to avoid wasting of CPU cycles, so reuse
--- previously calculated results via memoization
-local function build_suffix_array(file, resolve_dots)
-    local decorated_name = file
-    if suffix_arrays[decorated_name] ~= nil then
-        return suffix_arrays[decorated_name]
-    end
-
-    local suffixes = {}
-    file = normalize_file(file, resolve_dots)
-    --[[
-        we would very much prefer to use simple:
-           for v in file:gmatch('[^/]+') do
-        loop here, but string.gmatch is very slow
-        and that we actually need here are simple strchr's.
-    ]]
-    local i = 0
-    local j
-    local v
-    repeat
-        j = file:find('/', i, true)
-        if j ~= nil then
-            v = file:sub(i, j - 1)
-            if v ~= '.' then -- just skip '.' for current dir
-                if v == '..' then
-                    table.remove(suffixes)
-                else
-                    table.insert(suffixes, 1, v)
-                end
-            end
-            i = j + 1
-        end
-    until j == nil
-    -- don't forget to process the trailing segment
-    v = file:sub(i, #file)
-    if v ~= '.' then -- just skip '.' for current dir
-        if v == '..' then
-            table.remove(suffixes)
-        else
-            table.insert(suffixes, 1, v)
-        end
-    end
-
-    suffix_arrays[decorated_name] = suffixes
-    return suffixes
-end
-
--- Merge suffix array A to the tree T:
---   Given input array ['E.lua','C','B'] which is suffix array
---   corresponding to the input path '@B/./C/E.lua',
---   we build tree of a form:
---     T['E.lua']['C']['B'] = {}
-local function append_suffix_array(T, A)
-    assert(type(T) == 'table')
-    assert(type(A) == 'table')
-    if #A < 1 then
-        return
-    end
-    local C = T -- advance current node, starting from root
-    local P -- prior node
-    for i = 1, #A do
-        local v = A[i]
-        if not C[v] then
-            C[v] = {}
-            C[v]['$ref'] = 1 --reference counter
-        else
-            C[v]['$ref'] = C[v]['$ref'] + 1
-        end
-        P = C
-        C = C[v]
-    end
-    local last = A[#A]
-    P[last]['$f'] = true
-end
-
--- lookup into suffix tree T given constructed suffix array S
-local function lookup_suffix_array(T, S)
-    if #S < 1 then
-        return false
-    end
-    -- we need to make sure that at least once
-    -- we have matched node inside of loop
-    -- so bail out immediately if there is no any single
-    -- match
-    if T[S[1]] == nil then
-        return false
-    end
-
-    local C = T
-    local P -- last accessed node
-    local v
-    for i = 1, #S do
-        v = S[i]
-        if C[v] == nil then
-            return not not P[S[i - 1]]['$f']
-        end
-        P = C
-        C = C[v]
-    end
-    return not not P[v]['$f']
-end
-
---[[
-    Given suffix tree T try to remove suffix array A
-    from the tree. Leafs and intermediate nodes will be
-    cleaned up only once their reference counter '$ref'
-    will reach 1.
-]]
-local function remove_suffix_array(T, A)
-    local C = T
-    local mem_walk = {}
-    -- walks down tree, remembering pointers for inner directories
-    for i = 1, #A do
-        mem_walk[i] = C
-        local v = A[i]
-        if C[v] == nil then
-            return false
-        end
-        C = C[v]
-    end
-
-    -- now walk in revert order cleaning subnodes,
-    -- starting from deepest reachable leaf
-    for i = #A, 1, -1 do
-        C = mem_walk[i]
-        local v = A[i]
-        assert(C[v] ~= nil)
-        assert(C[v]['$ref'] >= 1)
-        C[v]['$ref'] = C[v]['$ref'] - 1
-        if C[v]['$ref'] <= 1 then
-            mem_walk[i] = nil
-            C[v] = nil
-        end
-    end
-end
-
+local suffix_tree = require 'tdebug.suffix_tree'
 local myself = normalize_file(debug.getinfo(1,'S').source)
 local breakpoints = {}
 
@@ -328,8 +191,8 @@ local function has_breakpoint(file, line)
     if T == nil then
         return false
     end
-    local suffixes = build_suffix_array(file)
-    return lookup_suffix_array(T, suffixes)
+    local suffixes = suffix_tree.build_array(file)
+    return T:lookup_array(suffixes)
 end
 
 local function has_active_breakpoints()
@@ -338,16 +201,16 @@ local function has_active_breakpoints()
 end
 
 local function add_breakpoint(file, line)
-    local suffixes = build_suffix_array(file, true)
+    local suffixes = suffix_tree.build_array(file, true)
     local normfile = normalize_file(file, true)
     -- save direct hash (for faster lookup): line -> file
     if not breakpoints[line] then
-        breakpoints[line] = {}
+        breakpoints[line] = suffix_tree.new()
     end
-    append_suffix_array(breakpoints[line], suffixes)
+    breakpoints[line]:append_array(suffixes)
     -- save reversed hash information: file -> [lines]
     if not breakpoints[normfile] then
-        breakpoints[normfile] = {}
+        breakpoints[normfile] = suffix_tree.new()
     end
     breakpoints[normfile][line] = true
 end
@@ -357,8 +220,8 @@ local function remove_breakpoint(file, line)
     if breakpoints[line] == nil then
         return false
     end
-    local suffixes = build_suffix_array(file, true)
-    remove_suffix_array(breakpoints[line], suffixes)
+    local suffixes = suffix_tree.build_array(file, true)
+    breakpoints[line]:remove_array(suffixes)
     breakpoints[normfile][line] = nil
 end
 
