@@ -3,6 +3,7 @@
 local colors   = require "term.colors"
 local debugger = require 'tdebug.debugger'
 local argparse = require "argparse"
+local tdo      = require 'tdebug.do'
 
 local parseArgument = function()
     local parser = argparse()
@@ -20,11 +21,13 @@ local parseArgument = function()
     parser:flag "-d --debugger"
         :description "Run tdebug in debugger mode"
 
-    return parser:parse()
-end
+    parser:flag "-s --sql"
+        :description "Run tdebug in sql mode"
 
-local function motto()
-    debugger.writeln("Tarantool Debugger wrapper:")
+    parser:flag "-l --lua"
+        :description "Run tdebug in lua mode"
+
+    return parser:parse()
 end
 
 local handle = function(arguments)
@@ -36,14 +39,12 @@ local handle = function(arguments)
         print(colors.red("Illegal use of --debugger: missing input file"))
         return
     elseif not debuggerOpts and arguments.input then
-        -- cdo.runFile(arguments.input, arguments.arguments)
+        tdo.runFile(arguments.input, arguments.arguments)
     else
         -- Regular REPL
-        -- require "croissant.repl"()
+        require "tdebug.repl"()
     end
 end
-
-motto()
 
 handle(parseArgument())
 
