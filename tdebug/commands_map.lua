@@ -21,8 +21,11 @@ local commands_help = {
 
 local commands_map = {}
 
-function commands_map.build(commands)
+function commands_map.build(commands, writeln)
     local gen_commands = {}
+    if writeln ~= nil then
+        commands_map.writeln = writeln
+    end
 
     for _, cmds in ipairs(commands) do
         local c, h, f = unpack(cmds)
@@ -90,5 +93,31 @@ function commands_map.match(self, line)
         return entry.handler, arg1st, entry.arg
     end
 end
+
+commands_map.writeln = print
+
+local colors = require 'tdebug.colors'
+
+function commands_map.help(self)
+    local cmd_map = assert(self.map)
+    for _, v in ipairs(cmd_map) do
+        local map = cmd_map[v]
+        if #map.aliases > 0 then
+            local fun = require 'fun'
+            local txt = ''
+            fun.each(function(x) txt = txt .. ', ' .. colors.yellow(x) end,
+                     map.aliases)
+            commands_map.writeln(colors.blue(v) .. ', ' .. string.sub(txt, 3, #txt) ..
+                        ' ' .. (map.arg or ''))
+        else
+            commands_map.writeln(colors.blue(v) .. ' ' .. (map.arg or ''));
+        end
+        commands_map.writeln(colors.grey('    -- ' .. map.help))
+    end
+    commands_map.writeln('')
+
+    return false
+end
+
 
 return commands_map

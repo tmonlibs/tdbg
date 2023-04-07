@@ -113,6 +113,8 @@ local function dbg_writeln(str, ...)
     end
 end
 
+-- FIXME - extract to tdebug.colors
+
 -- colored text output wrappers
 local color_blue = colors.blue
 local color_yellow = colors.yellow
@@ -865,31 +867,15 @@ local function cmd_locals()
     return false
 end
 
-local gen_commands
-
-local function cmd_help()
-    for _, v in ipairs(gen_commands) do
-        local map = gen_commands[v]
-        if #map.aliases > 0 then
-            local fun = require 'fun'
-            local txt = ''
-            fun.each(function(x) txt = txt .. ', ' .. color_yellow(x) end,
-                     map.aliases)
-            dbg.writeln(color_blue(v) .. ', ' .. string.sub(txt, 3, #txt) ..
-                        ' ' .. (map.arg or ''))
-        else
-            dbg.writeln(color_blue(v) .. ' ' .. (map.arg or ''));
-        end
-        dbg.writeln(color_grey('    -- ' .. map.help))
-    end
-    dbg.writeln('')
-
-    return false
-end
-
 local function cmd_quit()
     dbg.exit(0)
     return true
+end
+
+local gen_commands
+
+local function cmd_help()
+    gen_commands:help()
 end
 
 local commands_help = {
@@ -911,7 +897,8 @@ local commands_help = {
     {'w.here $linecount', 'print source code around the current line', cmd_where},
 }
 
-gen_commands = require ('tdebug.commands_map').build(commands_help)
+gen_commands = require ('tdebug.commands_map').build(commands_help, dbg_writeln)
+
 
 local last_cmd = false
 
