@@ -4,6 +4,11 @@ local colors   = require "term.colors"
 local debugger = require 'tdebug.debugger'
 local argparse = require "argparse"
 local tdo      = require 'tdebug.do'
+local dosql    = require 'tdebug.dosql'
+
+local function ext(path)
+    return string.gsub(path, '.*/', ''):gsub('.*[.]', '')
+end
 
 local parseArgument = function()
     local parser = argparse()
@@ -32,14 +37,27 @@ end
 
 local handle = function(arguments)
     -- If  defined, enter debugger mode
-    local debuggerOpts = arguments["debugger"]
+    local debuggerOpts = arguments.debugger
+    local sqlOpts = arguments.sql
+    local luaOpts = arguments.lua
     if debuggerOpts and arguments.input then
         debugger.dofile('tdbg', arguments.input, unpack(arguments.arguments))
+    elseif sqlOpts then
+        if arguments.input then
+            dosql.runFile(arguments.input)
+        else
+            dosql.repl();
+        end
     elseif debuggerOpts and not arguments.input then
         print(colors.red("Illegal use of --debugger: missing input file"))
         return
     elseif not debuggerOpts and arguments.input then
-        tdo.runFile(arguments.input, arguments.arguments)
+        local extension = ext(arguments.input)
+        if extension == 'sql' then
+            dosql.runFile(arguments.input)
+        else
+            tdo.runFile(arguments.input, arguments.arguments)
+        end
     else
         -- Regular REPL
         require "tdebug.repl"()
