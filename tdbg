@@ -1,0 +1,69 @@
+#!/usr/bin/env tarantool
+
+local colors   = require "term.colors"
+local debugger = require 'tdebug.debugger'
+local argparse = require "argparse"
+local tdo      = require 'tdebug.do'
+local dosql    = require 'tdebug.dosql'
+
+local function ext(path)
+    return string.gsub(path, '.*/', ''):gsub('.*[.]', '')
+end
+
+local parseArgument = function()
+    local parser = argparse()
+        :name "tdebug"
+        :description "Better Tarantool shell"
+
+    parser:argument "input"
+        :description "A lua or sql file to run or debug"
+        :args "?"
+
+    parser:argument "arguments"
+        :description "Arguments to pass to <input>"
+        :args "*"
+
+    parser:flag "-d --debugger"
+        :description "Run tdebug in debugger mode"
+
+    parser:flag "-s --sql"
+        :description "Run tdebug in sql mode"
+
+    parser:flag "-l --lua"
+        :description "Run tdebug in lua mode"
+
+    return parser:parse()
+end
+
+local handle = function(arguments)
+    -- If  defined, enter debugger mode
+    local debuggerOpts = arguments.debugger
+    local sqlOpts = arguments.sql
+    local luaOpts = arguments.lua
+    if debuggerOpts and arguments.input then
+        debugger.dofile('tdbg', arguments.input, unpack(arguments.arguments))
+    elseif sqlOpts then
+        if arguments.input then
+            dosql.runFile(arguments.input)
+        else
+            dosql.repl();
+        end
+    elseif debuggerOpts and not arguments.input then
+        print(colors.red("Illegal use of --debugger: missing input file"))
+        return
+    elseif not debuggerOpts and arguments.input then
+        local extension = ext(arguments.input)
+        if extension == 'sql' then
+            dosql.runFile(arguments.input)
+        else
+            tdo.runFile(arguments.input, arguments.arguments)
+        end
+    else
+        -- Regular REPL
+        require "tdebug.repl"()
+    end
+end
+
+handle(parseArgument())
+
+os.exit(0)
